@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>轻点评</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            margin: 0;
+            background-color: #f4f4f9;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        /* 搜索框样式 */
+        .search-container {
+            padding: 10px;
+            background-color: #fff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .search-container input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        /* 卡片样式 */
+        .card {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .card-content {
+            width: 300px;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .card-content:hover {
+            transform: scale(1.05);
+        }
+
+        .card-content h2 {
+            margin-top: 0;
+            color: #333;
+        }
+
+        .card-content p {
+            margin-bottom: 0;
+            color: #666;
+        }
+
+        /* 发布按钮样式 */
+        .publish-button-container {
+            padding: 10px;
+            text-align: center;
+            background-color: #fff;
+            box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .publish-button {
+            padding: 10px 20px;
+            background-color: #007BFF;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .publish-button:hover {
+            background-color: #0056b3;
+        }
+
+        /* 发布对话框样式 */
+        #addCommentDialog {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+            min-width: 300px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+            }
+        }
+
+        #addCommentDialog h3 {
+            margin-top: 0;
+            color: #333;
+        }
+
+        #addCommentDialog input,
+        #addCommentDialog textarea {
+            width: 100%;
+            margin-bottom: 15px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            transition: border-color 0.3s ease;
+        }
+
+        #addCommentDialog input:focus,
+        #addCommentDialog textarea:focus {
+            border-color: #007BFF;
+            outline: none;
+        }
+
+        #addCommentDialog button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        #addCommentButton {
+            background-color: #007BFF;
+            color: #fff;
+            margin-right: 10px;
+        }
+
+        #addCommentButton:hover {
+            background-color: #0056b3;
+        }
+
+        #cancelCommentButton {
+            background-color: #f8f9fa;
+            color: #333;
+        }
+
+        #cancelCommentButton:hover {
+            background-color: #e2e6ea;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="ip.js"></script>
+</head>
+
+<body>
+    <!-- 搜索框 -->
+    <div class="search-container">
+        <input type="text" id="searchInput" placeholder="搜索记录">
+    </div>
+    <!-- 卡片 -->
+    <div class="card">
+        <div class="card-content" id="recordCard">
+            <h2 id="title">加载中...</h2>
+            <p id="content">加载中...</p>
+            <p id="date">加载中...</p>
+        </div>
+    </div>
+    <!-- 发布按钮 -->
+    <div class="publish-button-container">
+        <button class="publish-button" id="publishButton">发布</button>
+    </div>
+    <!-- 发布对话框 -->
+    <div id="addCommentDialog">
+        <h3>添加评论</h3>
+        <input type="text" id="commentTitle" placeholder="标题">
+        <textarea id="commentContent" placeholder="内容"></textarea>
+        <button id="addCommentButton">发布</button>
+        <button id="cancelCommentButton">取消</button>
+    </div>
+    <script>
+        const searchInput = document.getElementById('searchInput');
+        const card = document.getElementById('recordCard');
+        const titleElement = document.getElementById('title');
+        const contentElement = document.getElementById('content');
+        const dateElement = document.getElementById('date');
+        const addCommentDialog = document.getElementById('addCommentDialog');
+        const commentTitle = document.getElementById('commentTitle');
+        const commentContent = document.getElementById('commentContent');
+        const addCommentButton = document.getElementById('addCommentButton');
+        const cancelCommentButton = document.getElementById('cancelCommentButton');
+        const publishButton = document.getElementById('publishButton');
+
+        async function fetchRandomRecord() {
+            const searchTerm = searchInput.value;
+            let url = `http://${ip}:3000/search`;
+            if (searchTerm) {
+                url += `?title=${encodeURIComponent(searchTerm)}`;
+            }
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        titleElement.textContent = '未找到记录';
+                        contentElement.textContent = '';
+                        dateElement.textContent = '';
+                    } else {
+                        throw new Error('网络响应异常');
+                    }
+                } else {
+                    const data = await response.json();
+                    titleElement.textContent = data.title;
+                    contentElement.textContent = data.content;
+                    dateElement.textContent = data.date;
+                }
+            } catch (error) {
+                console.error('请求出错:', error);
+                titleElement.textContent = '出错了';
+                contentElement.textContent = '请稍后重试';
+                dateElement.textContent = '';
+            }
+        }
+
+        // 页面加载时获取随机记录
+        fetchRandomRecord();
+
+        // 搜索框输入变化时重新获取记录
+        searchInput.addEventListener('input', fetchRandomRecord);
+
+        // 点击卡片时更换随机记录
+        card.addEventListener('click', fetchRandomRecord);
+
+        // 点击发布按钮弹出对话框
+        publishButton.addEventListener('click', () => {
+            addCommentDialog.style.display = 'block';
+        });
+
+        // 点击页面空白处取消发布
+        document.addEventListener('click', (event) => {
+            if (!addCommentDialog.contains(event.target) && event.target !== publishButton) {
+                addCommentDialog.style.display = 'none';
+                commentTitle.value = '';
+                commentContent.value = '';
+            }
+        });
+
+        // 取消添加评论
+        cancelCommentButton.addEventListener('click', () => {
+            addCommentDialog.style.display = 'none';
+            commentTitle.value = '';
+            commentContent.value = '';
+        });
+
+        // 发布评论
+        addCommentButton.addEventListener('click', async () => {
+            const title = commentTitle.value;
+            const content = commentContent.value;
+
+            if (title && content) {
+                try {
+                    const response = await fetch(`http://${ip}:3000/add`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ title, content })
+                    });
+
+                    if (response.ok) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: '发布成功',
+                            text: '评论已成功发布！'
+                        });
+                        addCommentDialog.style.display = 'none';
+                        commentTitle.value = '';
+                        commentContent.value = '';
+                        // 发布成功后重新获取随机记录
+                        fetchRandomRecord();
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: '发布失败',
+                            text: '评论发布失败，请稍后重试。'
+                        });
+                    }
+                } catch (error) {
+                    console.error('请求出错:', error);
+                    Swal.fire({
+                        icon: 'error',
+                        title: '发布失败',
+                        text: '评论发布失败，请稍后重试。'
+                    });
+                }
+            } else {
+                Swal.fire({
+                    icon: 'warning',
+                    title: '信息不全',
+                    text: '请输入标题和内容。'
+                });
+            }
+        });
+    </script>
+</body>
+
+</html>
